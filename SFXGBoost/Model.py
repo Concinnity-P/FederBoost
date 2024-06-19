@@ -1,4 +1,4 @@
-from SFXGBoost.config import rank, comm, Config
+from SFXGBoost.config import Config, NUM_CLIENTS
 from logging import Logger
 import numpy as np
 from SFXGBoost.data_structure.treestructure import FLTreeNode, SplittingInfo
@@ -30,7 +30,7 @@ def devide_D_Train(X, y, t_rank, data_devision:list):
     Returns:
         _type_: _description_
     """
-    total_users = comm.Get_size() - 1
+    total_users =  NUM_CLIENTS
     total_lenght = len(X)
     end, start = 0, 0
     if t_rank != 0:
@@ -110,212 +110,212 @@ class SFXGBoost(SFXGBoostClassifierBase):
     def setSplits(self, splits):
         self.splits = splits
     
-    def boost(self, init_Probas):
-        self.init_Probas = init_Probas
-        ####################
-        ###### SERVER ######
-        ####################
-        if rank == PARTY_ID.SERVER:
-            splits = comm.recv(source=1, tag=MSG_ID.INITIAL_QUANTILE_SPLITS)
-            self.logger.warning("splits:")
+    # def boost(self, init_Probas):
+    #     self.init_Probas = init_Probas
+    #     ####################
+    #     ###### SERVER ######
+    #     ####################
+    #     if rank == PARTY_ID.SERVER:
+    #         splits = comm.recv(source=1, tag=MSG_ID.INITIAL_QUANTILE_SPLITS)
+    #         self.logger.warning("splits:")
 
-            losslog_test = []
-            losslog_train = []
+    #         losslog_test = []
+    #         losslog_train = []
 
-            for i, split_k in enumerate(splits):
-                self.logger.warning(f"{self.fName[i]} = {split_k}")
+    #         for i, split_k in enumerate(splits):
+    #             self.logger.warning(f"{self.fName[i]} = {split_k}")
             
-            for t in range(self.config.max_tree):
-                # print("#####################")
-                print(f"> Busy with Tree {t} <")
-                # print("#####################")
+    #         for t in range(self.config.max_tree):
+    #             # print("#####################")
+    #             print(f"> Busy with Tree {t} <")
+    #             # print("#####################")
 
-                nodes = [[self.trees[c][t].root] for c in range(self.config.nClasses)] 
-                for d in range(self.config.max_depth):
-                    G = [[ [] for _ in range(len(nodes[c])) ] for c in range(self.config.nClasses)]
-                    H = [[ [] for _ in range(len(nodes[c])) ] for c in range(self.config.nClasses)]
-                    for Pi in range(1, comm.Get_size()):
+    #             nodes = [[self.trees[c][t].root] for c in range(self.config.nClasses)] 
+    #             for d in range(self.config.max_depth):
+    #                 G = [[ [] for _ in range(len(nodes[c])) ] for c in range(self.config.nClasses)]
+    #                 H = [[ [] for _ in range(len(nodes[c])) ] for c in range(self.config.nClasses)]
+    #                 for Pi in range(1, comm.Get_size()):
                         
-                        GH = comm.recv(source=Pi, tag=MSG_ID.RESPONSE_GRADIENTS) # receive [nClasses][nodes][]                        
-                        # raise Exception("testing")
-                        for c in range(self.config.nClasses):
-                            for i, n in enumerate(nodes[c]):
-                                Gpi = GH[0]
-                                Hpi = GH[1]
-                                if self.config.target_rank > 0:  # save memory if we are not gonna use Gpi
-                                    n.Gpi[Pi-1] = Gpi[c][i]
-                                    n.Hpi[Pi-1] = Hpi[c][i]
-                                if Pi == 1:                        
-                                    G[c][i] =  Gpi[c][i]  # I now save the gradients in the nodes, I don't really need this anymore
-                                    H[c][i] =  Hpi[c][i]  # I now save the gradients in the nodes, I don't really need this anymore
-                                    n.G = G[c][i]
-                                    n.H = H[c][i]
-                                else:
-                                    G[c][i] = [ G[c][i][featureid] + Gpi[c][i][featureid] for featureid in range(len(Gpi[c][i])) ]
-                                    n.G = G[c][i]
-                                    H[c][i] = [ H[c][i][featureid] + Hpi[c][i][featureid] for featureid in range(len(Hpi[c][i])) ]
-                                    n.H = H[c][i]
-                                    # if len(n.Gpi[0]) > 16:
-                                    #     print(f"wtf, {len(n.Gpi[0])}")
+    #                     GH = comm.recv(source=Pi, tag=MSG_ID.RESPONSE_GRADIENTS) # receive [nClasses][nodes][]                        
+    #                     # raise Exception("testing")
+    #                     for c in range(self.config.nClasses):
+    #                         for i, n in enumerate(nodes[c]):
+    #                             Gpi = GH[0]
+    #                             Hpi = GH[1]
+    #                             if self.config.target_rank > 0:  # save memory if we are not gonna use Gpi
+    #                                 n.Gpi[Pi-1] = Gpi[c][i]
+    #                                 n.Hpi[Pi-1] = Hpi[c][i]
+    #                             if Pi == 1:                        
+    #                                 G[c][i] =  Gpi[c][i]  # I now save the gradients in the nodes, I don't really need this anymore
+    #                                 H[c][i] =  Hpi[c][i]  # I now save the gradients in the nodes, I don't really need this anymore
+    #                                 n.G = G[c][i]
+    #                                 n.H = H[c][i]
+    #                             else:
+    #                                 G[c][i] = [ G[c][i][featureid] + Gpi[c][i][featureid] for featureid in range(len(Gpi[c][i])) ]
+    #                                 n.G = G[c][i]
+    #                                 H[c][i] = [ H[c][i][featureid] + Hpi[c][i][featureid] for featureid in range(len(Hpi[c][i])) ]
+    #                                 n.H = H[c][i]
+    #                                 # if len(n.Gpi[0]) > 16:
+    #                                 #     print(f"wtf, {len(n.Gpi[0])}")
                     
-                    splittingInfos = [[] for _ in range(self.config.nClasses)] 
-                    # print("got gradients")
-                    for c in range(self.config.nClasses):
-                        # def test(i):
-                        #     print(f"working on node c={c} i={i}")
-                        #     split_cn = self.find_split(splits, G[c][i], H[c][i], l+1 == self.config.max_depth)
-                        #     splittingInfos[c].append(split_cn)
-                        #     return None
-                        # import concurrent.futures
-                        # with concurrent.futures.ThreadPoolExecutor(max_workers=10) as executor:
-                        #     results = list(executor.map(test, range(len(nodes[c]))))
-                        # print(results)
-                        for i, n in enumerate(nodes[c]): #TODO multithread!
-                            split_cn = self.find_split(splits, G[c][i], H[c][i], d == self.config.max_depth)
-                            splittingInfos[c].append(split_cn)
+    #                 splittingInfos = [[] for _ in range(self.config.nClasses)] 
+    #                 # print("got gradients")
+    #                 for c in range(self.config.nClasses):
+    #                     # def test(i):
+    #                     #     print(f"working on node c={c} i={i}")
+    #                     #     split_cn = self.find_split(splits, G[c][i], H[c][i], l+1 == self.config.max_depth)
+    #                     #     splittingInfos[c].append(split_cn)
+    #                     #     return None
+    #                     # import concurrent.futures
+    #                     # with concurrent.futures.ThreadPoolExecutor(max_workers=10) as executor:
+    #                     #     results = list(executor.map(test, range(len(nodes[c]))))
+    #                     # print(results)
+    #                     for i, n in enumerate(nodes[c]): #TODO multithread!
+    #                         split_cn = self.find_split(splits, G[c][i], H[c][i], d == self.config.max_depth)
+    #                         splittingInfos[c].append(split_cn)
                     
-                    for Pi in range(1, comm.Get_size()):
-                        comm.send(splittingInfos, Pi, tag=MSG_ID.SPLIT_UPDATE )
-                    nodes = self.update_trees(nodes, splittingInfos, d)
-                    # update own my own trees to attack users
-                if (self.lossTrain is not None) and (self.lossTest is not None): # logging loss
-                    y_pred_train = self.predict_proba(self.lossTrain[0], t=t+1)
-                    # y_pred_train = np.eye(self.config.nClasses)[y_pred_train]  #makes it a one-hot encoded array
+    #                 for Pi in range(1, comm.Get_size()):
+    #                     comm.send(splittingInfos, Pi, tag=MSG_ID.SPLIT_UPDATE )
+    #                 nodes = self.update_trees(nodes, splittingInfos, d)
+    #                 # update own my own trees to attack users
+    #             if (self.lossTrain is not None) and (self.lossTest is not None): # logging loss
+    #                 y_pred_train = self.predict_proba(self.lossTrain[0], t=t+1)
+    #                 # y_pred_train = np.eye(self.config.nClasses)[y_pred_train]  #makes it a one-hot encoded array
 
-                    y_true = self.lossTrain[1]
-                    train_loss = getLoss(y_true, y_pred_train)
-                    losslog_train.append(train_loss)
-                    del y_pred_train
-                    y_pred_test = self.predict_proba(self.lossTest[0], t=t+1)
-                    # y_pred_test = np.eye(self.config.nClasses)[y_pred_test]
-                    y_true = self.lossTest[1]
-                    test_loss = getLoss(y_true, y_pred_test)
-                    losslog_test.append(test_loss)
-            if (self.lossTrain is not None) and (self.lossTest is not None):
-                plot_loss(losslog_train, losslog_test, self.config)
-            else:
-                print(f"self.lossTrain != None: {self.lossTrain is not None}")
-                print(f"self.lossTest != None: {self.lossTest is not None}")
+    #                 y_true = self.lossTrain[1]
+    #                 train_loss = getLoss(y_true, y_pred_train)
+    #                 losslog_train.append(train_loss)
+    #                 del y_pred_train
+    #                 y_pred_test = self.predict_proba(self.lossTest[0], t=t+1)
+    #                 # y_pred_test = np.eye(self.config.nClasses)[y_pred_test]
+    #                 y_true = self.lossTest[1]
+    #                 test_loss = getLoss(y_true, y_pred_test)
+    #                 losslog_test.append(test_loss)
+    #         if (self.lossTrain is not None) and (self.lossTest is not None):
+    #             plot_loss(losslog_train, losslog_test, self.config)
+    #         else:
+    #             print(f"self.lossTrain != None: {self.lossTrain is not None}")
+    #             print(f"self.lossTest != None: {self.lossTest is not None}")
 
-        ####################
-        ### PARTICIPANTS ###
-        ####################
-        else:
+    #     ####################
+    #     ### PARTICIPANTS ###
+    #     ####################
+    #     else:
             
-            # new_splits = self.quantile_lookup()
-            # if rank == 1: print(f"new_splits = {new_splits}")
-            # print("DEBUG found splits")
+    #         # new_splits = self.quantile_lookup()
+    #         # if rank == 1: print(f"new_splits = {new_splits}")
+    #         # print("DEBUG found splits")
 
-            if rank == 1: # send found splits to server (doesn't need to be done)
-                # def getSplits(quantileDB:QuantiledDataBase):
-                splits = [ [] for _ in range(self.nFeatures)]
-                i = 0
-                for fName, quantileFeature in self.quantileDB.featureDict.items():
-                    splits[i] = quantileFeature.splittingCandidates
-                    i += 1
+    #         if rank == 1: # send found splits to server (doesn't need to be done)
+    #             # def getSplits(quantileDB:QuantiledDataBase):
+    #             splits = [ [] for _ in range(self.nFeatures)]
+    #             i = 0
+    #             for fName, quantileFeature in self.quantileDB.featureDict.items():
+    #                 splits[i] = quantileFeature.splittingCandidates
+    #                 i += 1
 
-                comm.send(splits, PARTY_ID.SERVER, tag=MSG_ID.INITIAL_QUANTILE_SPLITS)
-                self.logger.debug(f"splits are {splits}")
+    #             comm.send(splits, PARTY_ID.SERVER, tag=MSG_ID.INITIAL_QUANTILE_SPLITS)
+    #             self.logger.debug(f"splits are {splits}")
 
-            orgData = deepcopy(self.original_data)
-            y_pred = np.tile(init_Probas, (self.nUsers, 1)) # nClasses, nUsers
-            y_pred = np.zeros((self.nUsers, self.config.nClasses))
-            y_pred = np.random.random(size=(self.nUsers, self.config.nClasses))
+    #         orgData = deepcopy(self.original_data)
+    #         y_pred = np.tile(init_Probas, (self.nUsers, 1)) # nClasses, nUsers
+    #         y_pred = np.zeros((self.nUsers, self.config.nClasses))
+    #         y_pred = np.random.random(size=(self.nUsers, self.config.nClasses))
 
-            y = self.y
-            G, H = None, None
-            # lossOverTrees = []
-            for t in range(self.config.max_tree):
-                # loss = getLoss(y, y_pred)
-                # lossOverTrees.append(loss)
+    #         y = self.y
+    #         G, H = None, None
+    #         # lossOverTrees = []
+    #         for t in range(self.config.max_tree):
+    #             # loss = getLoss(y, y_pred)
+    #             # lossOverTrees.append(loss)
 
 
-                G, H = getGradientHessians(np.argmax(y, axis=1), y_pred) # nUsers, nClasses
+    #             G, H = getGradientHessians(np.argmax(y, axis=1), y_pred) # nUsers, nClasses
                 
-                G, H = np.array(G).T, np.array(H).T  # (nClasses, nUsers)
-                nodes = [[self.trees[c][t].root] for c in range(self.config.nClasses)]
+    #             G, H = np.array(G).T, np.array(H).T  # (nClasses, nUsers)
+    #             nodes = [[self.trees[c][t].root] for c in range(self.config.nClasses)]
                 
-                for d in range(self.config.max_depth):
-                    Gnodes = [[] for _ in range(self.config.nClasses)]
-                    Hnodes = [[] for _ in range(self.config.nClasses)]
+    #             for d in range(self.config.max_depth):
+    #                 Gnodes = [[] for _ in range(self.config.nClasses)]
+    #                 Hnodes = [[] for _ in range(self.config.nClasses)]
 
-                    for c in range(self.config.nClasses):
-                        for node in nodes[c]:
-                            instances = node.instances
-                            # print(instances)
-                            gcn, hcn, dx = self.appendGradients(instances, G[c], H[c], orgData)
-                            # assert len(gcn) == 16
-                            Gnodes[c].append(gcn)
-                            Hnodes[c].append(hcn)
-                    # send the gradients for every class's tree, the different nodes that have to be updated in that tree and the 
-                    # print(f"sending gradients as rank {rank} on level {l}")
-                    self.logger.warning("sending G,H")
-                    comm.send((Gnodes,Hnodes), PARTY_ID.SERVER, tag=MSG_ID.RESPONSE_GRADIENTS)
-                    splits = comm.recv(source=PARTY_ID.SERVER, tag=MSG_ID.SPLIT_UPDATE)
-                    nodes = self.update_trees(nodes, splits, d) # also update Instances
-                # for c in range(self.config.nClasses):
-                #     FLVisNode(self.logger, self.trees[c][t].root).display(t)
-                update_pred = np.array([tree.predict(orgData) for tree in self.trees[:, t]]).T
-                y_pred += update_pred #* self.config.learning_rate
-        return True
-    def quantile_lookup(self):
-        """The different participants will run this algorithm to find the quantile splits.
-        This algorithm DOES NOT actually run the secure aggregation. We simply assume it is secure for the research
-        Outputs: Quantiles {Q_1,...,Q_{q-1}}
-        """
-        q = self.config.nBuckets
-        X = self.original_data
-        n = 50_000 # number of samples
-        print(f"my users = {self.nUsers},  total = {n}")
-        l = comm.Get_size()
-        Pl = 1
-        isPl = rank == Pl # active party 
-        # Q = np.zeros((self.nFeatures, q))
-        Q = [[] for _ in range(self.nFeatures)]
-        other_users = [i for i in range(1, l) if i != rank]
-        for featureid in range(self.config.nFeatures):
-            features_i = deepcopy(X.featureDict[list(X.featureDict.keys())[featureid]])
-            if len(np.unique(features_i)) < q*5:
-                # print(len(np.unique(features_i)))
-                Q[featureid] = [np.unique(features_i)]
-                continue # not a continues feature to complete quantile_lookup.
-            else:
-                print(f"getting quantiles on feature {featureid}!!")
-            for j in range(1, q-1):
-                Qj = None
-                if isPl:
-                    Qmin = np.min(features_i)
-                    Qmax = np.max(features_i)
-                nPrime = 0
-                while np.abs(nPrime - (n/q)) > 0: # TODO catch loop
-                    if isPl:
-                        Qj = (Qmin + Qmax) / 2
-                        for i in other_users:
-                            comm.send(Qj, i, tag=MSG_ID.Quantile_QJ)
-                    else:
-                        Qj = comm.recv(source=Pl, tag=MSG_ID.Quantile_QJ)
+    #                 for c in range(self.config.nClasses):
+    #                     for node in nodes[c]:
+    #                         instances = node.instances
+    #                         # print(instances)
+    #                         gcn, hcn, dx = self.appendGradients(instances, G[c], H[c], orgData)
+    #                         # assert len(gcn) == 16
+    #                         Gnodes[c].append(gcn)
+    #                         Hnodes[c].append(hcn)
+    #                 # send the gradients for every class's tree, the different nodes that have to be updated in that tree and the 
+    #                 # print(f"sending gradients as rank {rank} on level {l}")
+    #                 self.logger.warning("sending G,H")
+    #                 comm.send((Gnodes,Hnodes), PARTY_ID.SERVER, tag=MSG_ID.RESPONSE_GRADIENTS)
+    #                 splits = comm.recv(source=PARTY_ID.SERVER, tag=MSG_ID.SPLIT_UPDATE)
+    #                 nodes = self.update_trees(nodes, splits, d) # also update Instances
+    #             # for c in range(self.config.nClasses):
+    #             #     FLVisNode(self.logger, self.trees[c][t].root).display(t)
+    #             update_pred = np.array([tree.predict(orgData) for tree in self.trees[:, t]]).T
+    #             y_pred += update_pred #* self.config.learning_rate
+    #     return True
+    # def quantile_lookup(self):
+    #     """The different participants will run this algorithm to find the quantile splits.
+    #     This algorithm DOES NOT actually run the secure aggregation. We simply assume it is secure for the research
+    #     Outputs: Quantiles {Q_1,...,Q_{q-1}}
+    #     """
+    #     q = self.config.nBuckets
+    #     X = self.original_data
+    #     n = 50_000 # number of samples
+    #     print(f"my users = {self.nUsers},  total = {n}")
+    #     l = comm.Get_size()
+    #     Pl = 1
+    #     isPl = rank == Pl # active party 
+    #     # Q = np.zeros((self.nFeatures, q))
+    #     Q = [[] for _ in range(self.nFeatures)]
+    #     other_users = [i for i in range(1, l) if i != rank]
+    #     for featureid in range(self.config.nFeatures):
+    #         features_i = deepcopy(X.featureDict[list(X.featureDict.keys())[featureid]])
+    #         if len(np.unique(features_i)) < q*5:
+    #             # print(len(np.unique(features_i)))
+    #             Q[featureid] = [np.unique(features_i)]
+    #             continue # not a continues feature to complete quantile_lookup.
+    #         else:
+    #             print(f"getting quantiles on feature {featureid}!!")
+    #         for j in range(1, q-1):
+    #             Qj = None
+    #             if isPl:
+    #                 Qmin = np.min(features_i)
+    #                 Qmax = np.max(features_i)
+    #             nPrime = 0
+    #             while np.abs(nPrime - (n/q)) > 0: # TODO catch loop
+    #                 if isPl:
+    #                     Qj = (Qmin + Qmax) / 2
+    #                     for i in other_users:
+    #                         comm.send(Qj, i, tag=MSG_ID.Quantile_QJ)
+    #                 else:
+    #                     Qj = comm.recv(source=Pl, tag=MSG_ID.Quantile_QJ)
 
-                    nPrime_i = np.sum(features_i < Qj) #total nummber of local xs that are smaller than Qj
-                    #secure aggregation part
-                    nPrimes = np.zeros(l)
-                    nPrimes[rank] = nPrime_i
+    #                 nPrime_i = np.sum(features_i < Qj) #total nummber of local xs that are smaller than Qj
+    #                 #secure aggregation part
+    #                 nPrimes = np.zeros(l)
+    #                 nPrimes[rank] = nPrime_i
 
-                    for i in other_users: # 
-                        comm.send(nPrime_i, i, MSG_ID.Quantile_nPrime_i)
-                    for i in other_users: # 
-                        nPrime_i = comm.recv(source=i, tag=MSG_ID.Quantile_nPrime_i)
-                        nPrimes[i] = nPrime_i
-                    nPrime = np.sum(nPrimes) # sum over recv
-                    # print(f"nPrime = {nPrime} for user {rank}")
-                    if isPl and nPrime > n/q:
-                        Qmax = Qj
-                    elif isPl and nPrime < n/q:
-                        Qmin = Qj
-                Q[featureid].append(Qj)
-                print(f"my rank is {rank} with Qj = {Qj}")
-                features_i = featureid[featureid < Qj] # remove the local xs that are smaller than Qj
-            Q[featureid] = np.sort(Q[featureid])
-        return Q
+    #                 for i in other_users: # 
+    #                     comm.send(nPrime_i, i, MSG_ID.Quantile_nPrime_i)
+    #                 for i in other_users: # 
+    #                     nPrime_i = comm.recv(source=i, tag=MSG_ID.Quantile_nPrime_i)
+    #                     nPrimes[i] = nPrime_i
+    #                 nPrime = np.sum(nPrimes) # sum over recv
+    #                 # print(f"nPrime = {nPrime} for user {rank}")
+    #                 if isPl and nPrime > n/q:
+    #                     Qmax = Qj
+    #                 elif isPl and nPrime < n/q:
+    #                     Qmin = Qj
+    #             Q[featureid].append(Qj)
+    #             print(f"my rank is {rank} with Qj = {Qj}")
+    #             features_i = featureid[featureid < Qj] # remove the local xs that are smaller than Qj
+    #         Q[featureid] = np.sort(Q[featureid])
+    #     return Q
 
 
     def find_split(self, splits, gradient, hessian, is_last_level):

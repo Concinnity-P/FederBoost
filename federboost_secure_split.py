@@ -1,17 +1,7 @@
 from SFXGBoost.Model import SFXGBoost, devide_D_Train
 from SFXGBoost.config import Config, MyLogger
 from SFXGBoost.dataset.datasetRetrieval import getDataBase
-from flwr.common import (
-    Code,
-    EvaluateIns,
-    EvaluateRes,
-    FitIns,
-    FitRes,
-    GetParametersIns,
-    GetParametersRes,
-    Parameters,
-    Status,
-)
+
 dataset = 'healthcare'
 NUM_CLIENTS = 2
 DATA_DEVISION = [1/NUM_CLIENTS] * NUM_CLIENTS
@@ -38,7 +28,7 @@ config = Config(experimentName = "experiment 1",
         gamma=0, # 0.5
         alpha=0.0,
         learning_rate=0.3,
-        max_depth=8,
+        max_depth=3,
         max_tree=5,
         nBuckets=100,
         save=False,

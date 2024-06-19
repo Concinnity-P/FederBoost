@@ -4,7 +4,7 @@ from numpy import random as rand
 
 from SFXGBoost.common.BasicTypes import Direction
 from SFXGBoost.data_structure.treestructure import SplittingInfo
-from SFXGBoost.config import Config, rank
+from SFXGBoost.config import Config
 
 class QuantileParam:
     epsilon = 0.05 # privacy parameter
@@ -173,7 +173,7 @@ class DataBase:
         return ret
 
     @staticmethod
-    def data_matrix_to_database(dataTable: np.ndarray, featureName = None):
+    def data_matrix_to_database(dataTable: np.ndarray, featureName = None, rank = None):
         nFeatures = len(dataTable[0])
         if(featureName is None):
             featureName = ["Rank_{}_Feature_".format(rank) + str(i) for i in range(nFeatures)]

@@ -1,6 +1,6 @@
 import logging
 
-from mpi4py import MPI
+# from mpi4py import MPI
 from datetime import date
 import time
 import os
@@ -9,8 +9,10 @@ from SFXGBoost.dataset.datasetRetrieval import getConfigParams
 
 
 
-comm = MPI.COMM_WORLD
-rank = comm.Get_rank()
+# comm = MPI.COMM_WORLD
+# rank = comm.Get_rank()
+NUM_CLIENTS = 2
+
 np.set_printoptions(linewidth=np.inf)
 np.set_printoptions(precision=4, suppress=True)
 
@@ -37,8 +39,8 @@ class Config:
         self.train_size = train_size
         self.client = client
         self.num_client = num_client
-        # self.save_location= "./Saves/" + nameTest + "_rank_" + str(rank)
-        self.save_location= "/mnt/scratch_dir/meerhofj/Saves/" + experimentName + "/" + nameTest + "_rank_" + str(rank)
+        self.save_location= "./Saves/" + nameTest + "_rank_" + str(self.client)
+        # self.save_location= "/mnt/scratch_dir/meerhofj/Saves/" + experimentName + "/" + nameTest + "_rank_" + str(self.client)
 
     def prettyprint(self):
         print(f"experiment name = {self.experimentName}")
@@ -61,7 +63,7 @@ class MyLogger:
         # curTime = round(time.time())
         curTime = time.strftime("%H:%M", time.localtime())
 
-        logName = 'Log\{}\{}\{}_{}\Rank_{}.log'.format(config.nameTest, str(day), str(curTime).replace(':','_'), str(config.model), str(rank))
+        logName = 'Log\{}\{}\{}_{}\Rank_{}.log'.format(config.nameTest, str(day), str(curTime).replace(':','_'), str(config.model), str(config.client))
         os.makedirs(os.path.dirname(logName), exist_ok=True)
 
         file_handler = logging.FileHandler(logName, mode='w')

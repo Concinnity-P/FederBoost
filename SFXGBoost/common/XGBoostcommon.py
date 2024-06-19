@@ -2,7 +2,7 @@
 from distutils.log import Log
 import numpy as np
 from SFXGBoost.common.BasicTypes import Direction
-from SFXGBoost.config import rank
+# from SFXGBoost.config import rank
 
 
 def ThresholdL1(g, alpha): # for the split function g is never < 0 

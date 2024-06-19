@@ -1,7 +1,7 @@
 
 import numpy as np
 from SFXGBoost.common.XGBoostcommon import ThresholdL1
-from SFXGBoost.config import rank, comm, Config
+from SFXGBoost.config import  Config, NUM_CLIENTS
 
 class SplittingInfo:
     def __init__(self, bestSplitScore = -np.Infinity, featurId = None, featureName=None, splitValue=0.0, weight = None, nodeScore = None) -> None:
@@ -52,7 +52,7 @@ class TreeNode:
         self.weight = weight
         self.leftBranch = leftBranch
         self.rightBranch = rightBranch
-        self.weightpi = [ 0 for _ in range(comm.Get_size() -1)]
+        self.weightpi = [ 0 for _ in range(NUM_CLIENTS)]
         
 
     def logNode(self, logger):
@@ -86,8 +86,8 @@ class FLTreeNode(TreeNode):
         self.instances = instances
         self.G = None 
         self.H = None
-        self.Gpi = [ [] for _ in range(comm.Get_size() - 1)]
-        self.Hpi = [ [] for _ in range(comm.Get_size() - 1)]
+        self.Gpi = [ [] for _ in range(NUM_CLIENTS)]
+        self.Hpi = [ [] for _ in range(NUM_CLIENTS)]
         self.splitting_sgh = None  # NOT USED YET
         self.splitting_sgh = None  # store parent's splits, + your gradients
 
