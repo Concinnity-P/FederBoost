@@ -57,7 +57,8 @@ class Config:
 class MyLogger:
     def __init__(self, config:Config):
 
-        logger = logging.getLogger()
+        logger = logging.getLogger(str(config.client))
+        logger.propagate = False
         day = date.today().strftime("%b-%d-%Y")
 
         # curTime = round(time.time())
