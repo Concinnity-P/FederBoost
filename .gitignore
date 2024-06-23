@@ -5,3 +5,4 @@ test.py
 Saves/
 gitignore
 __pycache__/
+SFXGBoost/__pycache__/
