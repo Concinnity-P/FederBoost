@@ -354,7 +354,8 @@ def getConfigParams(dataBaseName): # retreive n_classes, n_features
                         'healthcare_hardcoded':(11, 16),
                         'MNIST':(10, 64), 
                         'Census':(-1, -1), 
-                        'DNA':(-1, -1)
+                        'DNA':(-1, -1),
+                        'iris':(3, 4),
                    }[dataBaseName]
     return get_databasefunc[0], get_databasefunc[1]
 
