@@ -10,6 +10,8 @@ from SFXGBoost.view.TreeRender import FLVisNode
 from typing import List
 
 from SFXGBoost.view.plotter import plot_loss  # last month loss logging
+from ddsketch import DDSketch
+from sklearn.model_selection import train_test_split
 
 class MSG_ID:
     TREE_UPDATE = 69
@@ -432,81 +434,81 @@ class SFXGBoost(SFXGBoostClassifierBase):
 
     
     def fit(self, X_train, y_train, fName, X_test=None, y_test=None, splits=None):
-            quantile = QuantiledDataBase(DataBase.data_matrix_to_database(X_train, fName), self.config ) ## DEL CONFIG if errors occur 12-oct
-                
-            initprobability = (sum(y_train))/len(y_train)
-            self.init_Probas = initprobability
-
-
-            ####################
-            # Split up the data#
-            ####################
-            total_users = self.config.num_client
-            total_lenght = len(X_train)
-            elements_per_node = total_lenght//total_users
-            start_end = [(i * elements_per_node, (i+1)* elements_per_node) for i in range(total_users)]
-
-            if self.config.client != 0:
-                X_train_my, y_train_my = devide_D_Train(X_train, y_train, self.config.client, self.config.data_devision)
-
-            # split up the database between the users
-            if self.config.client == 0:
-                
-                self.setData(quantileDB=quantile,fName=fName)
-                # Server will assess loss (unrealistic but for simulation)
-                # TODO retrieve training D, and testing D
-                # give these sets to the server.
-                # store training loss and testing loss over time
-                # plot over time
-                # show overfitting.
-                if (X_test is not None) and (y_test is not None):  # last month logging
-                    self.lossTrain = (X_train, y_train)
-                    self.lossTest = (X_test, y_test)
-                else:
-                    print(f"x_test != None {X_test is not None}")
-                    print(f"y_test != None {y_test is not None}")
-
-            else:
-                original = DataBase.data_matrix_to_database(X_train_my, fName)
-                quantile = quantile.splitupHorizontal(start_end[self.config.client-1][0], start_end[self.config.client-1][1])
-                self.setData(quantile, fName, original, y_train_my)
-            ####################
-
-
-
-
-            if self.config.client == 0:
-                splits = {}
-                for fName, quantileFeature in quantile.featureDict.items():
-                    splittingCandidates = quantileFeature.splittingCandidates
-                    splits[fName] = splittingCandidates
-                self.setSplits(splits)
-            # for Pi in range(1, comm.Get_size()):
-            #     comm.send(splits, Pi, MSG_ID.INITIAL_QUANTILE_SPLITS)
-            # else:
-            #     splits = comm.recv(source=PARTY_ID.SERVER, tag=MSG_ID.INITIAL_QUANTILE_SPLITS)
-            #     self.setquantiles(splits)
+        quantile = QuantiledDataBase(DataBase.data_matrix_to_database(X_train, fName), self.config ) ## DEL CONFIG if errors occur 12-oct
             
-            # if self.copied_quantiles != None:
-            #     self.setquantiles(self.copied_quantiles)
-            else:
-                self.setquantiles(splits)
+        initprobability = (sum(y_train))/len(y_train)
+        self.init_Probas = initprobability
+
+
+        ####################
+        # Split up the data#
+        ####################
+        total_users = self.config.num_client
+        total_lenght = len(X_train)
+        elements_per_node = total_lenght//total_users
+        start_end = [(i * elements_per_node, (i+1)* elements_per_node) for i in range(total_users)]
+
+        if self.config.client != 0:
+            X_train_my, y_train_my = devide_D_Train(X_train, y_train, self.config.client, self.config.data_devision)
+
+        # split up the database between the users
+        if self.config.client == 0:
             
-            # self.boost(initprobability)
-            if self.config.client != 0:
-                y_pred = np.tile(initprobability, (self.nUsers, 1)) # nClasses, nUsers
-                # y_pred = np.zeros((self.nUsers, self.config.nClasses))
-                # y_pred = np.random.random(size=(self.nUsers, self.config.nClasses))
-                self.pred = y_pred
+            self.setData(quantileDB=quantile,fName=fName)
+            # Server will assess loss (unrealistic but for simulation)
+            # TODO retrieve training D, and testing D
+            # give these sets to the server.
+            # store training loss and testing loss over time
+            # plot over time
+            # show overfitting.
+            if (X_test is not None) and (y_test is not None):  # last month logging
+                self.lossTrain = (X_train, y_train)
+                self.lossTest = (X_test, y_test)
             else:
-                y_pred = np.tile(initprobability, (len(X_train), 1))
-                self.pred = y_pred
-            
-            self.currentTree = -1
-            self.G = None
-            self.H = None
-            # self.currentDepth = 0
-            return self
+                print(f"x_test != None {X_test is not None}")
+                print(f"y_test != None {y_test is not None}")
+
+        else:
+            original = DataBase.data_matrix_to_database(X_train_my, fName)
+            quantile = quantile.splitupHorizontal(start_end[self.config.client-1][0], start_end[self.config.client-1][1])
+            self.setData(quantile, fName, original, y_train_my)
+        ####################
+
+
+
+
+        if self.config.client == 0:
+            splits = {}
+            for fName, quantileFeature in quantile.featureDict.items():
+                splittingCandidates = quantileFeature.splittingCandidates
+                splits[fName] = splittingCandidates
+            self.setSplits(splits)
+        # for Pi in range(1, comm.Get_size()):
+        #     comm.send(splits, Pi, MSG_ID.INITIAL_QUANTILE_SPLITS)
+        # else:
+        #     splits = comm.recv(source=PARTY_ID.SERVER, tag=MSG_ID.INITIAL_QUANTILE_SPLITS)
+        #     self.setquantiles(splits)
+        
+        # if self.copied_quantiles != None:
+        #     self.setquantiles(self.copied_quantiles)
+        else:
+            self.setquantiles(splits)
+        
+        # self.boost(initprobability)
+        if self.config.client != 0:
+            y_pred = np.tile(initprobability, (self.nUsers, 1)) # nClasses, nUsers
+            # y_pred = np.zeros((self.nUsers, self.config.nClasses))
+            # y_pred = np.random.random(size=(self.nUsers, self.config.nClasses))
+            self.pred = y_pred
+        else:
+            y_pred = np.tile(initprobability, (len(X_train), 1))
+            self.pred = y_pred
+        
+        self.currentTree = -1
+        self.G = None
+        self.H = None
+        # self.currentDepth = 0
+        return self
     
     def predict(self, X, pi=-1): # returns class number
         """returns one dimentional array of multi-class predictions
@@ -576,6 +578,60 @@ class SFXGBoost(SFXGBoostClassifierBase):
 
     # my functions  ####
     ####################
+    def server_fit(self, fName, splits):
+        self.setSplits(splits)
+        # self.lossTrain = (X_train, y_train)
+        # self.lossTest = (X_test, y_test)
+        self.setData(fName=fName)
+
+            
+        self.currentTree = -1
+        self.G = None
+        self.H = None
+        return self
+
+    def participant_fit(self, X_train:np.ndarray, y_train, fName):
+        X_train, X_test, y_train, y_test = train_test_split(X_train, y_train, test_size=0.2, random_state=42)
+        
+        self.X_test = X_test
+        self.y_test = y_test
+        self.X_train = X_train
+        self.y_train = y_train
+        
+        quantile = QuantiledDataBase(DataBase.data_matrix_to_database(X_train, fName), self.config )
+        nBuckets = self.config.nBuckets
+        original = DataBase.data_matrix_to_database(X_train, fName)
+        self.setData(quantile, fName, original, y_train)
+        sketches = [DDSketch() for _ in range(len(fName))]
+
+        results = [ [] for _ in range(len(fName))]
+
+        for i, fName in enumerate(fName):
+            fData = X_train[:, i]
+            sketch = sketches[i]
+            for value in fData:
+                sketch.add(value)
+            results[i].append(sketch)
+            if len(np.unique(fData)) > nBuckets+1:
+                results[i].append(False)
+            else:
+                results[i].append(np.unique(fData))
+        
+        self.currentTree = -1
+        self.G = None
+        self.H = None
+
+        initprobability = (sum(y_train))/len(y_train)
+        y_pred = np.tile(initprobability, (len(X_train), 1))
+        # y_pred = np.zeros((self.nUsers, self.config.nClasses))
+        # y_pred = np.random.random(size=(self.nUsers, self.config.nClasses))
+        self.pred = y_pred
+
+        return results
+        
+
+
+
     def server_boost(self, GHs, t, d):
         """_summary_
 
@@ -614,12 +670,12 @@ class SFXGBoost(SFXGBoostClassifierBase):
                         n.H = H[c][i]
         splittingInfos = [[] for _ in range(self.config.nClasses)] 
                     # print("got gradients")
-
-        splits = [ [] for _ in range(self.nFeatures)]
-        i = 0
-        for fName, quantileFeature in self.quantileDB.featureDict.items():
-            splits[i] = quantileFeature.splittingCandidates
-            i += 1
+        splits = self.splits
+        # splits = [ [] for _ in range(self.nFeatures)]
+        # i = 0
+        # for fName, quantileFeature in self.quantileDB.featureDict.items():
+        #     splits[i] = quantileFeature.splittingCandidates
+        #     i += 1
         for c in range(self.config.nClasses):
             # def test(i):
             #     print(f"working on node c={c} i={i}")
@@ -639,29 +695,29 @@ class SFXGBoost(SFXGBoostClassifierBase):
         # update_pred = np.array([tree.predict(self.original_data) for tree in self.trees[:, t]]).T
         # self.pred += update_pred * self.config.learning_rate
         
-        if d == self.config.max_depth - 1:
-            if not hasattr(self, 'losslog_train') and not hasattr(self, 'losslog_test'):
+        if not hasattr(self, 'losslog_train') and not hasattr(self, 'losslog_test'):
                 self.losslog_train = []
                 self.losslog_test = []
                 
 
-            y_pred_train = self.predict_proba(self.lossTrain[0], t=t+1)
-            y_true = self.lossTrain[1]
-            train_loss = getLoss(y_true, y_pred_train)
-            self.losslog_train.append(train_loss)
-            del y_pred_train
-            y_pred_test = self.predict_proba(self.lossTest[0], t=t+1)
-            y_true = self.lossTest[1]
-            test_loss = getLoss(y_true, y_pred_test)
-            self.losslog_test.append(test_loss)   
+            # y_pred_train = self.predict_proba(self.lossTrain[0], t=t+1)
+            # y_true = self.lossTrain[1]
+            # train_loss = getLoss(y_true, y_pred_train)
+            # self.losslog_train.append(train_loss)
+            # del y_pred_train
+            # y_pred_test = self.predict_proba(self.lossTest[0], t=t+1)
+            # y_true = self.lossTest[1]
+            # test_loss = getLoss(y_true, y_pred_test)
+            # self.losslog_test.append(test_loss)   
 
 
-            print(f'loss on train = {train_loss}')
-            print(f'loss on test = {test_loss}')
-            if t == self.config.max_tree - 1:
-                plot_loss(self.losslog_train, self.losslog_test, self.config)
+            # print(f'loss on train = {train_loss}')
+            # print(f'loss on test = {test_loss}')
+            # if t == self.config.max_tree - 1:
+            #     plot_loss(self.losslog_train, self.losslog_test, self.config)
 
         print(f"Server sending splits.")
+        self.logger.warning(f"Server sending splits.")
         return splittingInfos
 
     def participant_boost(self, t, d):
@@ -720,7 +776,7 @@ class SFXGBoost(SFXGBoostClassifierBase):
                 Gnodes[c].append(gcn)
                 Hnodes[c].append(hcn)
 
-        self.logger.warning(f"Client{self.config.client} sending G,H")
+        # self.logger.warning(f"Client{self.config.client} sending G,H")
         print(f"Client{self.config.client} sending G,H")
         return (Gnodes, Hnodes)
         nodes = self.update_trees(nodes, splits, d) # also update Instances
@@ -732,6 +788,29 @@ class SFXGBoost(SFXGBoostClassifierBase):
 
         newnodes = self.update_trees(self.currentNodes, splitinfo, d)
         self.currentNodes = newnodes
+
+        if not hasattr(self, 'losslog_train') and not hasattr(self, 'losslog_test'):
+            self.losslog_train = []
+            self.losslog_test = []
+        if d == self.config.max_depth - 1:
+
+            #evaluation
+
+            y_pred_train = self.predict_proba(self.X_train, t=t+1)
+            y_true = self.y_train
+            train_loss = getLoss(y_true, y_pred_train)
+            self.losslog_train.append(train_loss)
+            del y_pred_train
+            y_pred_test = self.predict_proba(self.X_test, t=t+1)
+            y_true = self.y_test
+            test_loss = getLoss(y_true, y_pred_test)
+            self.losslog_test.append(test_loss)
+            return [train_loss, test_loss]
+        
+        if t > 0:
+            return [self.losslog_train[-1], self.losslog_test[-1]]
+        else:
+            return [None, None]
         # if t > self.currentTree:
         #     self.currentTree = t
         #     self.currentDepth = d
