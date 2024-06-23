@@ -2,3 +2,6 @@ Log/
 Plots/
 test.py
 .vscode
+Saves/
+gitignore
+__pycache__/
