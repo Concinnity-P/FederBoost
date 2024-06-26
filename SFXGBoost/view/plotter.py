@@ -83,6 +83,8 @@ def plot_loss(Train_loss, test_loss, config:Config):
     
     ax.plot(trees, Train_loss, label="Training Loss", marker='o')
     ax.plot(trees, test_loss, label="Testing Loss", marker='*')
+    #set y-axis range from 0 to 1
+    ax.set_ylim(0, 1)
     plt.xticks(trees)
     plt.xlabel('Tree')
     plt.ylabel('Loss')
