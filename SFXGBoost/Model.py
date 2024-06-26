@@ -5,13 +5,14 @@ from SFXGBoost.data_structure.treestructure import FLTreeNode, SplittingInfo
 from copy import deepcopy
 from SFXGBoost.data_structure.databasestructure import QuantiledDataBase, DataBase
 from SFXGBoost.common.XGBoostcommon import PARTY_ID, L, Direction, weights_to_probas
-from SFXGBoost.loss.softmax import getGradientHessians, getLoss
+from SFXGBoost.loss.softmax import getGradientHessians, getLoss, getGradientHessiansVectorized
 from SFXGBoost.view.TreeRender import FLVisNode
 from typing import List
 
 from SFXGBoost.view.plotter import plot_loss  # last month loss logging
 from ddsketch import DDSketch
 from sklearn.model_selection import train_test_split
+from typing import Union
 
 class MSG_ID:
     TREE_UPDATE = 69
@@ -345,7 +346,7 @@ class SFXGBoost(SFXGBoostClassifierBase):
                     Gr = G-Gl
                     Hr = H-Hl
                     score = L(G, H, Gl, Gr, Hl, Hr, self.config.lam, self.config.alpha, self.config.gamma)
-                    if score > maxScore and Hl > 1 and Hr > 1: # TODO 1 = min_child_weight
+                    if score > maxScore:# and Hl > 1 and Hr > 1: # TODO 1 = min_child_weight
                         value = splits[k][v]
                         featureId = k
                         featureName = self.fName[k]
@@ -358,6 +359,7 @@ class SFXGBoost(SFXGBoostClassifierBase):
         # for i in range(0, len(gradient)-1):
         #     print(f"i  = {i}:{np.sum(gradient[i])}, i+1 = {i+1}:{np.sum(gradient[i+1])} random -> {dice}")
         # assert all([np.sum(gradient[i]) == np.sum(gradient[i+1]) for i in range(0, len(gradient)-1)])
+        # weight, nodeScore = FLTreeNode.compute_leaf_param(gVec=gradient[0], hVec=hessian[0], lamb=self.config.lam, alpha=self.config.alpha) #TODO not done correctly should be done seperately!
         weight, nodeScore = FLTreeNode.compute_leaf_param(gVec=gradient[0], hVec=hessian[0], lamb=self.config.lam, alpha=self.config.alpha) #TODO not done correctly should be done seperately!
         weight = self.config.learning_rate * weight
         return SplittingInfo(bestSplitScore=maxScore, featurId=featureId, featureName=featureName, splitValue=value, weight=weight, nodeScore=nodeScore)
@@ -390,7 +392,7 @@ class SFXGBoost(SFXGBoostClassifierBase):
                     node.leftBranch = None
                     node.rightBranch = None
 
-                    self.nodes[c][depth].append(node) # only add leaf nodes maybe?
+                    # self.nodes[c][depth].append(node) # only add leaf nodes maybe?
 
         return new_nodes
 
@@ -432,7 +434,30 @@ class SFXGBoost(SFXGBoostClassifierBase):
         return Gkv, Hkv, None
         # comm.send((Gkv, Hkv, Dx), PARTY_ID.SERVER, tag=MSG_ID.RESPONSE_GRADIENTS)
 
-    
+    def appendGradientsVectorized(self, instances, G, H, orgData):
+        Gkv = []
+        Hkv = []
+        for fName, _ in self.quantileDB.featureDict.items():
+            splits = self.quantileDB.featureDict[fName].splittingCandidates
+            Gk = np.zeros(len(splits) + 1)
+            Hk = np.zeros(len(splits) + 1)
+
+            data = orgData.featureDict[fName]
+            bin_indices = np.searchsorted(splits, data)
+
+            valid_indices = np.where(instances)[0]  # Indices of valid instances
+            valid_bins = bin_indices[valid_indices]  # Corresponding bins for valid instances
+
+            # Accumulate gradients and hessians for valid instances
+            np.add.at(Gk, valid_bins, G[valid_indices])
+            np.add.at(Hk, valid_bins, H[valid_indices])
+
+            Gkv.append(Gk)
+            Hkv.append(Hk)
+
+        return Gkv, Hkv, None
+
+
     def fit(self, X_train, y_train, fName, X_test=None, y_test=None, splits=None):
         quantile = QuantiledDataBase(DataBase.data_matrix_to_database(X_train, fName), self.config ) ## DEL CONFIG if errors occur 12-oct
             
@@ -590,8 +615,8 @@ class SFXGBoost(SFXGBoostClassifierBase):
         self.H = None
         return self
 
-    def participant_fit(self, X_train:np.ndarray, y_train, fName):
-        X_train, X_test, y_train, y_test = train_test_split(X_train, y_train, test_size=0.2, random_state=42)
+    def participant_fit(self, X_train:np.ndarray, y_train, fName) -> List[List[ Union[DDSketch, bool, np.ndarray]]]:
+        X_train, X_test, y_train, y_test = train_test_split(X_train, y_train, test_size=0.2, random_state=42, stratify=y_train)
         
         self.X_test = X_test
         self.y_test = y_test
@@ -753,7 +778,7 @@ class SFXGBoost(SFXGBoostClassifierBase):
 
 
 
-            G, H = getGradientHessians(np.argmax(y, axis=1), self.pred) # nUsers, nClasses
+            G, H = getGradientHessiansVectorized(np.argmax(y, axis=1), self.pred) # nUsers, nClasses
             
             G, H = np.array(G).T, np.array(H).T  # (nClasses, nUsers)
 
@@ -771,7 +796,7 @@ class SFXGBoost(SFXGBoostClassifierBase):
             for node in nodes[c]:
                 instances = node.instances
                 # print(instances)
-                gcn, hcn, dx = self.appendGradients(instances, G[c], H[c], orgData)
+                gcn, hcn, dx = self.appendGradientsVectorized(instances, G[c], H[c], orgData)
                 # assert len(gcn) == 16
                 Gnodes[c].append(gcn)
                 Hnodes[c].append(hcn)
@@ -792,7 +817,7 @@ class SFXGBoost(SFXGBoostClassifierBase):
         if not hasattr(self, 'losslog_train') and not hasattr(self, 'losslog_test'):
             self.losslog_train = []
             self.losslog_test = []
-        if d == self.config.max_depth - 1:
+        if d == self.config.max_depth:
 
             #evaluation
 
