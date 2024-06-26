@@ -11,7 +11,7 @@ from SFXGBoost.dataset.datasetRetrieval import getConfigParams
 
 # comm = MPI.COMM_WORLD
 # rank = comm.Get_rank()
-NUM_CLIENTS = 2
+NUM_CLIENTS = 3
 
 np.set_printoptions(linewidth=np.inf)
 np.set_printoptions(precision=4, suppress=True)
