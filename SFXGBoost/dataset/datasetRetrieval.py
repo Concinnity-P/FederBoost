@@ -356,6 +356,8 @@ def getConfigParams(dataBaseName): # retreive n_classes, n_features
                         'Census':(-1, -1), 
                         'DNA':(-1, -1),
                         'iris':(3, 4),
+                        'credit_card_fraud': (2, 30),
+                        'whales_prediction': (2, 58)
                    }[dataBaseName]
     return get_databasefunc[0], get_databasefunc[1]
 
