@@ -35,3 +35,30 @@ def getGradientHessians(y, y_pred, case_weight=None):
             grad[rowid][c] = g * case_weight[rowid][c]
             hess[rowid][c] = h * case_weight[rowid][c]
     return grad, hess #nUsers, nClasses
+
+def getGradientHessiansVectorized(y, y_pred, case_weight=None):
+    if case_weight is None:
+        case_weight = np.ones_like(y_pred)
+    
+    # Step 1: Compute wmax for each row
+    wmax = np.max(y_pred, axis=1, keepdims=True)
+    
+    # Step 2: Calculate wsum
+    wsum = np.sum(np.exp(y_pred - wmax), axis=1, keepdims=True)
+    
+    # Step 3: Compute probabilities (p)
+    p = np.exp(y_pred - wmax) / wsum
+    
+    # Step 4: Calculate gradients (g)
+    correct_class_mask = np.eye(y_pred.shape[1])[y]
+    g = p - correct_class_mask
+    
+    # Step 5: Calculate Hessians (h)
+    # h = np.maximum(2.0 * p * (1.0 - p), 1e-6)
+    h = np.maximum( p * (1.0 - p), 1e-6)
+    
+    # Step 6: Apply case_weight
+    grad = g * case_weight
+    hess = h * case_weight
+    
+    return grad, hess
