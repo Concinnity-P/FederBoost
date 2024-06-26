@@ -14,7 +14,7 @@ def ThresholdL1(g, alpha): # for the split function g is never < 0
         return 0.0
     
 # L = lambda G,H, GL, GR, HL, HR, lamb, gamma: 1/2 * ((ThresholdL1(GL*GL) / (HL + lamb)) + (ThresholdL1(GR*GR) / (HR + lamb)) - (ThresholdL1(G*G) / (H + lamb))) - gamma
-L = lambda G,H, GL, GR, HL, HR, lamb, alpha, gamma: ((ThresholdL1(GL*GL, alpha) / (HL + lamb)) + (ThresholdL1(GR*GR, alpha) / (HR + lamb)) - (ThresholdL1(G*G, alpha) / (H + lamb))) - gamma
+L = lambda G,H, GL, GR, HL, HR, lamb, alpha, gamma: 1/2 * ((ThresholdL1(GL*GL, alpha) / (HL + lamb)) + (ThresholdL1(GR*GR, alpha) / (HR + lamb)) - (ThresholdL1(G*G, alpha) / (H + lamb))) - gamma
 
 # L = lambda G,H, GL, GR, HL, HR, lamb, gamma, alpha: 1/2 * (ThresholdL1(GL, alpha) / (HL + lamb)) + (GR*GR / (HR + lamb)) - (G*G / (H + lamb))) - gamma
 
