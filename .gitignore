@@ -6,3 +6,4 @@ Saves/
 gitignore
 __pycache__/
 SFXGBoost/__pycache__/
+FederBoost.code-workspace
